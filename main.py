@@ -165,6 +165,21 @@ class Canvas:
             a = math.radians(deg)
             self.set(cx + int(r * math.cos(a)), cy + int(r * math.sin(a)), color)
 
+    def polyfill(self, pts, color):
+        """Scanline fill of a polygon given as [(x, y), ...]."""
+        ys = [p[1] for p in pts]
+        for y in range(min(ys), max(ys) + 1):
+            xs = []
+            for i in range(len(pts)):
+                x0, y0 = pts[i]
+                x1, y1 = pts[(i + 1) % len(pts)]
+                if (y0 <= y < y1) or (y1 <= y < y0):
+                    xs.append(x0 + (y - y0) * (x1 - x0) / (y1 - y0))
+            xs.sort()
+            for j in range(0, len(xs) - 1, 2):
+                for xx in range(int(xs[j]), int(xs[j + 1]) + 1):
+                    self.set(xx, y, color)
+
     def text_width(self, text, scale):
         return len(text) * (5 * scale + scale)
 
@@ -232,10 +247,15 @@ def icon_shield(cv, x, y, s, color):
            (x + s // 2, y + s), (x, y + s // 2), (x, y + s // 4)]
     for a, b in zip(pts, pts[1:] + pts[:1]):
         cv.line(a[0], a[1], b[0], b[1], color)
-    # lightning bolt inside
-    cv.line(x + s // 2 + 2, y + s // 4, x + s // 2 - 3, y + s // 2, color)
-    cv.line(x + s // 2 - 3, y + s // 2, x + s // 2 + 3, y + s // 2, color)
-    cv.line(x + s // 2 + 3, y + s // 2, x + s // 2 - 2, y + 3 * s // 4, color)
+    # lightning bolt inside, as a filled polygon
+    s2 = s
+    bolt = [(x + s2 // 2 + 3, y + s2 // 4),
+            (x + s2 // 2 - 4, y + s2 // 2),
+            (x + s2 // 2 + 1, y + s2 // 2),
+            (x + s2 // 2 - 3, y + 3 * s2 // 4),
+            (x + s2 // 2 + 4, y + s2 // 2 - 2),
+            (x + s2 // 2 - 1, y + s2 // 2 - 2)]
+    cv.polyfill(bolt, color)
 
 
 def icon_ballot(cv, x, y, s, color):
@@ -287,7 +307,7 @@ CARDS = [
      "a sitting president. An early election must be called within "
      "four months."),
     ("EUROPE", BLUE, icon_eu_stars,
-     "EU SENDS KYIV ITS BIGGEST AID YET",
+     "EU SENDS KYIV RECORD AID",
      "Brussels completes a disbursement of nearly 8 billion euros to "
      "Ukraine, its largest-ever single payment."),
     ("SPORT", BLUE, icon_cricket,
